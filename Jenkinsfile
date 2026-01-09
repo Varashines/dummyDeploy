@@ -15,6 +15,9 @@ pipeline {
     }
 
     environment {
+        // Add common tool paths for macOS Homebrew
+        PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
+        
         AWS_ACCOUNT_ID = "123456789012" // [PLACEHOLDER] Replace with your AWS Account ID
         AWS_CREDENTIALS_ID = "jenkins-deploy-aws" // [PLACEHOLDER] Jenkins Credentials ID for AWS Access Key/Secret
         ECR_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
@@ -52,15 +55,13 @@ pipeline {
             }
             steps {
                 script {
-                    // Login to ECR
-                    // Assumes AWS CLI is installed and configured on Jenkins agent
-                    // Or use withAWS credentials block if using AWS Steps plugin
-                    sh "aws ecr get-login-password --region ${params.AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URL}"
+                    // Login to ECR using podman
+                    sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${ECR_URL}"
                     
                     dir('app') {
-                        // Build using the UV-optimized Dockerfile
-                        sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-                        sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                        // Build using the UV-optimized Dockerfile with podman
+                        sh "podman build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                        sh "podman push ${IMAGE_NAME}:${IMAGE_TAG}"
                     }
                 }
             }
