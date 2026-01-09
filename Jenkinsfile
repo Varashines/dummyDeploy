@@ -5,7 +5,6 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10')) // Keep last 10 builds
         timestamps()                                  // Add timestamps to logs
         timeout(time: 1, unit: 'HOURS')               // Timeout after 1 hour
-        ansiColor('xterm')                            // Support for colored output
     }
 
     parameters {
