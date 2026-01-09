@@ -83,8 +83,16 @@ pipeline {
 
     post {
         always {
-            // Optional: Clean up workspace
-            cleanWs()
+            // Clean up workspace but PRESERVE terraform state files
+            // otherwise terraform will try to recreate everything on every build
+            cleanWs(
+                deleteDirs: true,
+                notFailBuild: true,
+                patterns: [
+                    [pattern: 'terraform/*.tfstate*', type: 'EXCLUDE'],
+                    [pattern: 'terraform/.terraform/**', type: 'EXCLUDE']
+                ]
+            )
         }
         success {
             script {
