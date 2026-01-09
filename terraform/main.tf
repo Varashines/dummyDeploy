@@ -2,10 +2,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-resource "random_id" "id" {
-  byte_length = 4
-}
-
 # --- ECR Repository ---
 data "aws_ecr_repository" "app_repo" {
   name = "fastapi-app-repo"
@@ -13,19 +9,18 @@ data "aws_ecr_repository" "app_repo" {
 
 # --- CloudWatch Logs ---
 resource "aws_cloudwatch_log_group" "ecs" {
-  name              = "/ecs/fastapi-app-${random_id.id.hex}"
+  name              = "/ecs/fastapi-app"
   retention_in_days = 7
 }
 
 # --- ECS Cluster ---
 resource "aws_ecs_cluster" "main" {
-  name = "fastapi-cluster-${random_id.id.hex}"
+  name = "fastapi-cluster"
 }
 
 # --- EC2 Launch Configuration & ASG for ECS ---
-# Note: For production, use Launch Templates.
 resource "aws_security_group" "ecs_sg" {
-  name_prefix = "ecs-sg-"
+  name        = "ecs-sg"
   description = "Allow all traffic for ECS tasks"
 
   ingress {
@@ -52,7 +47,7 @@ resource "aws_security_group" "ecs_sg" {
 
 # IAM Role for ECS Instances
 resource "aws_iam_role" "ecs_instance_role" {
-  name_prefix = "ecs-instance-role-"
+  name = "ecs-instance-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -74,8 +69,8 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_logs_policy" {
 }
 
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name_prefix = "ecs-instance-profile-"
-  role        = aws_iam_role.ecs_instance_role.name
+  name = "ecs-instance-profile"
+  role = aws_iam_role.ecs_instance_role.name
 }
 
 resource "aws_instance" "ecs_host" {
@@ -125,7 +120,7 @@ resource "aws_ecs_task_definition" "app" {
 
 # --- ECS Service ---
 resource "aws_ecs_service" "app_service" {
-  name            = "fastapi-service-${random_id.id.hex}"
+  name            = "fastapi-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1

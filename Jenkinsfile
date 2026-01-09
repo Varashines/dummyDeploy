@@ -7,6 +7,10 @@ pipeline {
         timeout(time: 1, unit: 'HOURS')               // Timeout after 1 hour
     }
 
+    triggers {
+        pollSCM('H/5 * * * *') // Poll GitHub every 5 minutes
+    }
+
     parameters {
         string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region')
         string(name: 'ECR_REPO_NAME', defaultValue: 'fastapi-app-repo', description: 'ECR Repository Name')
@@ -67,18 +71,11 @@ pipeline {
             }
             steps {
                 script {
-                    def clusterName = ""
-                    def serviceName = ""
-                    dir('terraform') {
-                        clusterName = sh(script: "terraform output -raw ecs_cluster_name", returnStdout: true).trim()
-                        serviceName = sh(script: "terraform output -raw ecs_service_name", returnStdout: true).trim()
-                    }
-                    
                     // Force a new deployment of the ECS service to pick up the new image
                     sh """
                         aws ecs update-service \
-                            --cluster ${clusterName} \
-                            --service ${serviceName} \
+                            --cluster fastapi-cluster \
+                            --service fastapi-service \
                             --force-new-deployment \
                             --region ${params.AWS_REGION}
                     """
