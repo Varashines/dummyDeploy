@@ -25,4 +25,5 @@ COPY . .
 EXPOSE 8000
 
 # Run the app using uvicorn (inside the uv virtualenv)
-CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Using 'uv run' ensures the app runs within the environment created by uv sync
+CMD ["/bin/uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
