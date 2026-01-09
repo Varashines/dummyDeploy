@@ -1,0 +1,14 @@
+[project]
+name = "flask-app"
+version = "0.1.0"
+description = "A simple FastAPI app deployed via CI/CD"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
