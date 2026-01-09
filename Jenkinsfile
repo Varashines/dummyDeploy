@@ -53,8 +53,8 @@ pipeline {
                     sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${ECR_URL}"
                     
                     dir('app') {
-                        // Build using the UV-optimized Dockerfile with podman
-                        sh "podman build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                        // Build for linux/amd64 since the EC2 host (t3.micro) is x86_64
+                        sh "podman build --platform linux/amd64 -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                         sh "podman push ${IMAGE_NAME}:${IMAGE_TAG}"
                     }
                 }
