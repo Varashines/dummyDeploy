@@ -17,7 +17,7 @@ resource "aws_ecs_cluster" "main" {
 # --- EC2 Launch Configuration & ASG for ECS ---
 # Note: For production, use Launch Templates.
 resource "aws_security_group" "ecs_sg" {
-  name        = "ecs-sg"
+  name_prefix = "ecs-sg-"
   description = "Allow all traffic for ECS tasks"
 
   ingress {
@@ -44,7 +44,7 @@ resource "aws_security_group" "ecs_sg" {
 
 # IAM Role for ECS Instances
 resource "aws_iam_role" "ecs_instance_role" {
-  name = "ecs-instance-role"
+  name_prefix = "ecs-instance-role-"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -61,8 +61,8 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
 }
 
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "ecs-instance-profile"
-  role = aws_iam_role.ecs_instance_role.name
+  name_prefix = "ecs-instance-profile-"
+  role        = aws_iam_role.ecs_instance_role.name
 }
 
 resource "aws_instance" "ecs_host" {
