@@ -3,10 +3,8 @@ provider "aws" {
 }
 
 # --- ECR Repository ---
-resource "aws_ecr_repository" "app_repo" {
-  name                 = "fastapi-app-repo"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
+data "aws_ecr_repository" "app_repo" {
+  name = "fastapi-app-repo"
 }
 
 # --- ECS Cluster ---
@@ -91,7 +89,7 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([{
     name      = "fastapi-container"
-    image     = "${aws_ecr_repository.app_repo.repository_url}:latest"
+    image     = "${data.aws_ecr_repository.app_repo.repository_url}:latest"
     cpu       = 256
     memory    = 512
     essential = true
