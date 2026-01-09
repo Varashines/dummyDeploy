@@ -25,5 +25,5 @@ COPY . .
 EXPOSE 8000
 
 # Run the app using uvicorn (inside the uv virtualenv)
-# Using 'uv run' ensures the app runs within the environment created by uv sync
-CMD ["/bin/uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# --no-project ensures uv doesn't try to install the 'flask-app' package in editable mode
+CMD ["/bin/uv", "run", "--no-project", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
