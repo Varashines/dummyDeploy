@@ -83,6 +83,19 @@ pipeline {
 
     post {
         always {
+            echo "Build finished."
+        }
+        success {
+            script {
+                if (!params.DESTROY_INFRA) {
+                    echo "Deployment Successful!"
+                    dir('terraform') {
+                        sh "terraform output ec2_public_ip"
+                    }
+                }
+            }
+        }
+        cleanup {
             // Clean up workspace but PRESERVE terraform state files
             // otherwise terraform will try to recreate everything on every build
             cleanWs(
@@ -93,14 +106,6 @@ pipeline {
                     [pattern: 'terraform/.terraform/**', type: 'EXCLUDE']
                 ]
             )
-        }
-        success {
-            script {
-                if (!params.DESTROY_INFRA) {
-                    echo "Deployment Successful!"
-                    sh "cd terraform && terraform output ec2_public_ip"
-                }
-            }
         }
     }
 }
