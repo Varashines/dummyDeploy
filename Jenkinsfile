@@ -26,23 +26,17 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Infrastructure Provisioning') {
             steps {
                 script {
                     dir('terraform') {
-                        sh 'terraform init'
+                        sh 'terraform init -no-color'
                         if (params.DESTROY_INFRA) {
-                            sh "terraform destroy -auto-approve -var=\"key_name=${params.EC2_KEY_NAME}\""
+                            sh "terraform destroy -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
                             currentBuild.result = 'SUCCESS'
                             return
                         } else {
-                            sh "terraform apply -auto-approve -var=\"key_name=${params.EC2_KEY_NAME}\""
+                            sh "terraform apply -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
                         }
                     }
                 }
