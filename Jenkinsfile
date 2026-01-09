@@ -1,6 +1,13 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10')) // Keep last 10 builds
+        timestamps()                                  // Add timestamps to logs
+        timeout(time: 1, unit: 'HOURS')               // Timeout after 1 hour
+        ansiColor('xterm')                            // Support for colored output
+    }
+
     parameters {
         string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region')
         string(name: 'ECR_REPO_NAME', defaultValue: 'fastapi-app-repo', description: 'ECR Repository Name')
@@ -10,7 +17,7 @@ pipeline {
 
     environment {
         AWS_ACCOUNT_ID = "123456789012" // [PLACEHOLDER] Replace with your AWS Account ID
-        AWS_CREDENTIALS_ID = "aws-credentials" // [PLACEHOLDER] Jenkins Credentials ID for AWS Access Key/Secret
+        AWS_CREDENTIALS_ID = "jenkins-deploy-aws" // [PLACEHOLDER] Jenkins Credentials ID for AWS Access Key/Secret
         ECR_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${ECR_URL}/${params.ECR_REPO_NAME}"
         IMAGE_TAG = "latest"
