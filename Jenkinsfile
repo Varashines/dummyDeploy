@@ -18,7 +18,7 @@ pipeline {
         // Add common tool paths for macOS Homebrew
         PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
         
-        AWS_ACCOUNT_ID = "123456789012" // [PLACEHOLDER] Replace with your AWS Account ID
+        AWS_ACCOUNT_ID = "976709231767" // Update with your actual AWS Account ID
         AWS_CREDENTIALS_ID = "jenkins-deploy-aws" // [PLACEHOLDER] Jenkins Credentials ID for AWS Access Key/Secret
         ECR_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
         IMAGE_NAME = "${ECR_URL}/${params.ECR_REPO_NAME}"
