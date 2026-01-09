@@ -2,6 +2,10 @@ provider "aws" {
   region = var.aws_region
 }
 
+resource "random_id" "id" {
+  byte_length = 4
+}
+
 # --- ECR Repository ---
 data "aws_ecr_repository" "app_repo" {
   name = "fastapi-app-repo"
@@ -9,7 +13,7 @@ data "aws_ecr_repository" "app_repo" {
 
 # --- ECS Cluster ---
 resource "aws_ecs_cluster" "main" {
-  name = "fastapi-cluster"
+  name = "fastapi-cluster-${random_id.id.hex}"
 }
 
 # --- EC2 Launch Configuration & ASG for ECS ---
@@ -102,7 +106,7 @@ resource "aws_ecs_task_definition" "app" {
 
 # --- ECS Service ---
 resource "aws_ecs_service" "app_service" {
-  name            = "fastapi-service"
+  name            = "fastapi-service-${random_id.id.hex}"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1

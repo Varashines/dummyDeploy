@@ -67,12 +67,18 @@ pipeline {
             }
             steps {
                 script {
+                    def clusterName = ""
+                    def serviceName = ""
+                    dir('terraform') {
+                        clusterName = sh(script: "terraform output -raw ecs_cluster_name", returnStdout: true).trim()
+                        serviceName = sh(script: "terraform output -raw ecs_service_name", returnStdout: true).trim()
+                    }
+                    
                     // Force a new deployment of the ECS service to pick up the new image
-                    // This is the simplest way to update tasks on EC2-backed ECS
                     sh """
                         aws ecs update-service \
-                            --cluster fastapi-cluster \
-                            --service fastapi-service \
+                            --cluster ${clusterName} \
+                            --service ${serviceName} \
                             --force-new-deployment \
                             --region ${params.AWS_REGION}
                     """
