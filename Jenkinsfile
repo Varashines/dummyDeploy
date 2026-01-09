@@ -10,7 +10,7 @@ pipeline {
     parameters {
         string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region')
         string(name: 'ECR_REPO_NAME', defaultValue: 'fastapi-app-repo', description: 'ECR Repository Name')
-        string(name: 'EC2_KEY_NAME', defaultValue: 'your-aws-key-name', description: 'AWS Key Pair Name for EC2')
+        string(name: 'EC2_KEY_NAME', defaultValue: 'Jenkins', description: 'AWS Key Pair Name for EC2')
         booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Set to true to destroy infrastructure instead of deploying')
     }
 
