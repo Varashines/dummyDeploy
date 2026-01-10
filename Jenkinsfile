@@ -21,7 +21,6 @@ pipeline {
     environment {
         PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
         AWS_CREDENTIALS_ID = "jenkins-deploy-aws" 
-        // These will be populated dynamically in the 'Initialize' stage
         AWS_ACCOUNT_ID = ""
         ECR_URL = ""
         IMAGE_NAME = ""
@@ -32,12 +31,10 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Using the correct binding for 'AWS Credentials' type
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                         env.AWS_ACCOUNT_ID = sh(script: "aws sts get-caller-identity --query Account --output text", returnStdout: true).trim()
                         env.ECR_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
                         env.IMAGE_NAME = "${env.ECR_URL}/${params.ECR_REPO_NAME}"
-                        echo "Initialized for AWS Account: ${env.AWS_ACCOUNT_ID}"
                     }
                 }
             }
@@ -69,9 +66,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-                        // Login to ECR using podman
                         sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${env.ECR_URL}"
-                        
                         dir('app') {
                             sh "podman build --platform linux/amd64 -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} ."
                             sh "podman push ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
@@ -88,7 +83,6 @@ pipeline {
             steps {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-                        // Force a new deployment of the ECS service to pick up the new image
                         sh """
                             aws ecs update-service \
                                 --cluster fastapi-cluster \
@@ -117,14 +111,7 @@ pipeline {
             }
         }
         cleanup {
-            cleanWs(
-                deleteDirs: true,
-                notFailBuild: true,
-                patterns: [
-                    [pattern: 'terraform/*.tfstate*', type: 'EXCLUDE'],
-                    [pattern: 'terraform/.terraform/**', type: 'EXCLUDE']
-                ]
-            )
+            cleanWs()
         }
     }
 }
