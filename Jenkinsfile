@@ -8,7 +8,7 @@ pipeline {
     }
 
     triggers {
-        githubPush() // Triggered by GitHub Webhook
+        pollSCM('H/5 * * * *') // Poll GitHub every 5 minutes
     }
 
     parameters {
