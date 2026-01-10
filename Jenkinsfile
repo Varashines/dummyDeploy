@@ -19,28 +19,43 @@ pipeline {
     }
 
     environment {
-        // Add common tool paths for macOS Homebrew
         PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
-        
-        AWS_ACCOUNT_ID = "976709231767" // Update with your actual AWS Account ID
-        AWS_CREDENTIALS_ID = "jenkins-deploy-aws" // [PLACEHOLDER] Jenkins Credentials ID for AWS Access Key/Secret
-        ECR_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
-        IMAGE_NAME = "${ECR_URL}/${params.ECR_REPO_NAME}"
+        AWS_CREDENTIALS_ID = "jenkins-deploy-aws" 
+        // These will be populated dynamically in the 'Initialize' stage
+        AWS_ACCOUNT_ID = ""
+        ECR_URL = ""
+        IMAGE_NAME = ""
         IMAGE_TAG = "latest"
     }
 
     stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIALS_ID, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        // Dynamically fetch Account ID using the provided credentials
+                        env.AWS_ACCOUNT_ID = sh(script: "aws sts get-caller-identity --query Account --output text", returnStdout: true).trim()
+                        env.ECR_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
+                        env.IMAGE_NAME = "${env.ECR_URL}/${params.ECR_REPO_NAME}"
+                        echo "Initialized for AWS Account: ${env.AWS_ACCOUNT_ID}"
+                    }
+                }
+            }
+        }
+
         stage('Infrastructure Provisioning') {
             steps {
                 script {
-                    dir('terraform') {
-                        sh 'terraform init -no-color'
-                        if (params.DESTROY_INFRA) {
-                            sh "terraform destroy -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
-                            currentBuild.result = 'SUCCESS'
-                            return
-                        } else {
-                            sh "terraform apply -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
+                    withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIALS_ID, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        dir('terraform') {
+                            sh 'terraform init -no-color'
+                            if (params.DESTROY_INFRA) {
+                                sh "terraform destroy -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
+                                currentBuild.result = 'SUCCESS'
+                                return
+                            } else {
+                                sh "terraform apply -auto-approve -no-color -var=\"key_name=${params.EC2_KEY_NAME}\""
+                            }
                         }
                     }
                 }
@@ -53,13 +68,14 @@ pipeline {
             }
             steps {
                 script {
-                    // Login to ECR using podman
-                    sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${ECR_URL}"
-                    
-                    dir('app') {
-                        // Build for linux/amd64 since the EC2 host (t3.micro) is x86_64
-                        sh "podman build --platform linux/amd64 -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-                        sh "podman push ${IMAGE_NAME}:${IMAGE_TAG}"
+                    withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIALS_ID, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        // Login to ECR using podman
+                        sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${env.ECR_URL}"
+                        
+                        dir('app') {
+                            sh "podman build --platform linux/amd64 -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} ."
+                            sh "podman push ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                        }
                     }
                 }
             }
@@ -71,14 +87,16 @@ pipeline {
             }
             steps {
                 script {
-                    // Force a new deployment of the ECS service to pick up the new image
-                    sh """
-                        aws ecs update-service \
-                            --cluster fastapi-cluster \
-                            --service fastapi-service \
-                            --force-new-deployment \
-                            --region ${params.AWS_REGION}
-                    """
+                    withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIALS_ID, passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                        // Force a new deployment of the ECS service to pick up the new image
+                        sh """
+                            aws ecs update-service \
+                                --cluster fastapi-cluster \
+                                --service fastapi-service \
+                                --force-new-deployment \
+                                --region ${params.AWS_REGION}
+                        """
+                    }
                 }
             }
         }
@@ -99,8 +117,6 @@ pipeline {
             }
         }
         cleanup {
-            // Clean up workspace but PRESERVE terraform state files
-            // otherwise terraform will try to recreate everything on every build
             cleanWs(
                 deleteDirs: true,
                 notFailBuild: true,
