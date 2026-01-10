@@ -26,18 +26,52 @@ resource "aws_ecs_cluster" "main" {
   name = "fastapi-cluster"
 }
 
-# --- EC2 Launch Configuration & ASG for ECS ---
-resource "aws_security_group" "ecs_sg" {
-  name        = "ecs-sg"
-  description = "Allow all traffic for ECS tasks"
+# --- VPC & Networking (Using Default VPC for simplicity) ---
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+# --- Security Groups ---
+resource "aws_security_group" "alb_sg" {
+  name        = "fastapi-alb-sg"
+  description = "Allow port 80 for ALB"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "ecs_sg" {
+  name        = "ecs-sg"
+  description = "Allow traffic from ALB to ECS tasks"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+  
+  # Allow SSH for debugging
   ingress {
     from_port   = 22
     to_port     = 22
@@ -53,7 +87,39 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# IAM Role for ECS Instances
+# --- Application Load Balancer ---
+resource "aws_lb" "main" {
+  name               = "fastapi-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = data.aws_subnets.default.ids
+}
+
+resource "aws_lb_target_group" "app" {
+  name        = "fastapi-tg"
+  port        = 8000
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.default.id
+  target_type = "instance"
+
+  health_check {
+    path = "/"
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+
+# --- IAM Role for ECS Instances ---
 resource "aws_iam_role" "ecs_instance_role" {
   name = "ecs-instance-role"
   assume_role_policy = jsonencode({
@@ -86,9 +152,9 @@ resource "aws_instance" "ecs_host" {
   instance_type        = var.instance_type
   key_name             = var.key_name
   iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
-  security_groups      = [aws_security_group.ecs_sg.name]
+  vpc_security_group_ids = [aws_security_group.ecs_sg.id]
+  subnet_id            = data.aws_subnets.default.ids[0]
 
-  # Critical: Tell the ECS agent which cluster to join
   user_data = <<-EOF
               #!/bin/bash
               echo ECS_CLUSTER=${aws_ecs_cluster.main.name} >> /etc/ecs/ecs.config
@@ -126,11 +192,20 @@ resource "aws_ecs_task_definition" "app" {
   }])
 }
 
-# --- ECS Service ---
+# --- ECS Service with ALB ---
 resource "aws_ecs_service" "app_service" {
   name            = "fastapi-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1
   launch_type     = "EC2"
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app.arn
+    container_name   = "fastapi-container"
+    container_port   = 8000
+  }
+
+  # Ensure the listener is created before the service
+  depends_on = [aws_lb_listener.http]
 }

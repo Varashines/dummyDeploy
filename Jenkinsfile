@@ -115,7 +115,7 @@ pipeline {
                 if (!params.DESTROY_INFRA) {
                     echo "Deployment Successful!"
                     dir('terraform') {
-                        sh "terraform output ec2_public_ip"
+                        sh "terraform output alb_dns_name"
                     }
                 }
             }
