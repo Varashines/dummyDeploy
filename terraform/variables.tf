@@ -4,8 +4,8 @@ variable "aws_region" {
 
 variable "ecs_ami_id" {
   description = "ECS Optimized AMI ID"
-  # Latest ECS-optimized Amazon Linux 2 AMI for us-east-1
-  default     = "ami-03113ba8214d72be8" 
+  # Latest ECS-optimized Amazon Linux 2023 AMI for us-east-1
+  default     = "ami-0bcad7d4493b66a48" 
 }
 
 variable "instance_type" {

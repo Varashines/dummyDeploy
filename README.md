@@ -1,57 +1,52 @@
-# Simple FastAPI App Deployment with Jenkins, Terraform, Docker, and UV
+# FastAPI ECS CI/CD with Jenkins & Terraform
 
-This project provides a complete setup to deploy a simple FastAPI application to an AWS EC2 instance using a CI/CD pipeline managed by Jenkins, infrastructure provisioned by Terraform, and Python environment managed by UV.
+This project provides a robust, production-ready CI/CD pipeline to deploy a FastAPI application to **Amazon ECS (EC2-backed)** using Jenkins and Terraform.
 
-## Project Structure
+## 🚀 Key Features
 
-- `app/`: Contains the FastAPI application, `pyproject.toml`, `uv.lock`, and `Dockerfile`.
-- `terraform/`: Contains Terraform configuration files to provision AWS infrastructure.
-- `Jenkinsfile`: Defines the CI/CD pipeline stages.
+- **Application**: FastAPI-based web service.
+- **Dependency Management**: `uv` for lightning-fast, reproducible Python environments.
+- **Containerization**: Podman for secure, daemon-less container builds (multi-arch `linux/amd64`).
+- **Infrastructure (IaC)**: Terraform for automated AWS resource management.
+- **State Management**: S3 Remote Backend for persistent Terraform state.
+- **CI/CD**: Jenkins Pipeline with automated SCM polling.
+- **Observability**: Centralized logging via AWS CloudWatch.
 
-## Prerequisites
+## 📁 Project Structure
 
-1. **AWS Account**: You need an AWS account and credentials configured.
-2. **Terraform**: Installed on the Jenkins agent.
-3. **Docker**: Installed on the Jenkins agent and the target EC2 instance.
-4. **Jenkins**: A Jenkins server with the following plugins:
-   - Pipeline
-   - Git
-   - SSH Agent
-   - Terraform Plugin (optional, can use shell commands)
+- `app/`: FastAPI application, `pyproject.toml`, `uv.lock`, and `Dockerfile`.
+- `terraform/`: Configuration for ECR, ECS (Cluster, Service, Task), EC2 (Host), and IAM.
+- `Jenkinsfile`: Multi-stage pipeline (Initialize, Provision, Build, Push, Deploy).
 
-## Setup Instructions
+## 🛠 Prerequisites
 
-### 1. AWS Credentials
-Ensure Jenkins has access to AWS credentials. You can environment variables or IAM roles if Jenkins is running on an EC2 instance.
+1.  **AWS Account**: Infrastructure is deployed in `us-east-1`.
+2.  **Jenkins Agent**: Must have `terraform`, `aws-cli`, and `podman` installed.
+3.  **Jenkins Credentials**: 
+    - `jenkins-deploy-aws`: AWS IAM credentials (with `AdministratorAccess`).
+4.  **AWS Key Pair**: An existing key pair named `Jenkins` in your AWS region.
 
-### 2. Jenkins Credentials
-Add the following credentials to Jenkins:
-- `aws-ssh-key`: The SSH private key (`.pem`) used to access the EC2 instances.
-- `docker-hub-credentials`: (Optional) Your Docker Hub username and password.
+## ⚙️ Setup & Deployment
 
-### 3. Terraform Configuration
-Update `terraform/variables.tf` or provide a `terraform.tfvars` file with:
-- `key_name`: The name of your AWS key pair.
-- `aws_region`: Your preferred AWS region.
+1.  **Terraform Remote State**: The project uses an S3 bucket for state. Ensure `terraform/main.tf` points to a valid bucket.
+2.  **Jenkins Pipeline**: 
+    - Create a "Pipeline" job pointing to this GitHub repository.
+    - The pipeline is configured to automatically poll for changes.
+3.  **Triggering a Build**: 
+    - Simply push code or manual trigger via "Build with Parameters".
 
-### 4. GitHub Repository
-Initialize a git repository, commit the files, and push to GitHub:
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
+## 🛡 Security & Best Practices
 
-### 5. Jenkins Pipeline
-1. Create a new "Pipeline" job in Jenkins.
-2. Under "Pipeline definition", select "Pipeline script from SCM".
-3. Choose "Git" and provide your repository URL.
-4. Save and click "Build Now".
+- **IAM Roles**: Uses specific Task and Instance roles with least-privilege principles.
+- **Logging**: All container output is streamed to CloudWatch for debugging.
+- **AMI Strategy**: Uses the latest **Amazon Linux 2023 (AL2023)** ECS-optimized AMI to ensure long-term support.
+- **Cleanup**: Workspace is cleaned post-build while preserving Terraform state.
 
-## Accessing the App
-Once the pipeline completes successfully, you can access the FastAPI app at:
-`http://<EC2_PUBLIC_IP>:8000`
+## 🔗 Accessing the App
 
-The public IP can be found in the Jenkins build console or via the Terraform output.
+After a successful deployment, the FastAPI root endpoint will be available at:
+`http://<EC2_PUBLIC_IP>:8000/`
+
+Interactive Documentation:
+- **Swagger**: `http://<EC2_PUBLIC_IP>:8000/docs`
+- **ReDoc**: `http://<EC2_PUBLIC_IP>:8000/redoc`
