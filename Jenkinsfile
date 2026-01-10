@@ -20,11 +20,7 @@ pipeline {
 
     environment {
         PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
-        AWS_CREDENTIALS_ID = "jenkins-deploy-aws" 
-        AWS_ACCOUNT_ID = ""
-        ECR_URL = ""
-        IMAGE_NAME = ""
-        IMAGE_TAG = "latest"
+        AWS_CREDENTIALS_ID = "jenkins-deploy-aws"
     }
 
     stages {
@@ -32,9 +28,17 @@ pipeline {
             steps {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-                        env.AWS_ACCOUNT_ID = sh(script: "aws sts get-caller-identity --query Account --output text", returnStdout: true).trim()
-                        env.ECR_URL = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
+                        // Dynamically fetch and set environmental variables
+                        def accountId = sh(script: "aws sts get-caller-identity --query Account --output text", returnStdout: true).trim()
+                        
+                        // Set variables at the global env level so they persist across stages
+                        env.AWS_ACCOUNT_ID = accountId
+                        env.ECR_URL = "${accountId}.dkr.ecr.${params.AWS_REGION}.amazonaws.com"
                         env.IMAGE_NAME = "${env.ECR_URL}/${params.ECR_REPO_NAME}"
+                        
+                        echo "--- Environment Initialized ---"
+                        echo "AWS Account: ${env.AWS_ACCOUNT_ID}"
+                        echo "ECR URL: ${env.ECR_URL}"
                     }
                 }
             }
@@ -65,11 +69,17 @@ pipeline {
             }
             steps {
                 script {
+                    // Safety check to ensure variables are present
+                    if (!env.ECR_URL || env.ECR_URL == "null") {
+                        error "ECR_URL is not set. The Initialize stage might have failed or variables did not propagate."
+                    }
+
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                         sh "aws ecr get-login-password --region ${params.AWS_REGION} | podman login --username AWS --password-stdin ${env.ECR_URL}"
+                        
                         dir('app') {
-                            sh "podman build --platform linux/amd64 -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} ."
-                            sh "podman push ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                            sh "podman build --platform linux/amd64 -t ${env.IMAGE_NAME}:latest ."
+                            sh "podman push ${env.IMAGE_NAME}:latest"
                         }
                     }
                 }
