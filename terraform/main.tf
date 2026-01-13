@@ -147,6 +147,29 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
 
+# --- IAM Role for ECS Tasks (Bedrock & DynamoDB access) ---
+resource "aws_iam_role" "ecs_task_role" {
+  name = "ecs-task-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "bedrock_access" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonBedrockFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "dynamodb_access" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+}
+
 resource "aws_instance" "ecs_host" {
   ami                  = var.ecs_ami_id
   instance_type        = var.instance_type
@@ -170,6 +193,7 @@ resource "aws_ecs_task_definition" "app" {
   requires_compatibilities = ["EC2"]
   cpu                      = "256"
   memory                   = "512"
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
     name      = "fastapi-container"
@@ -181,6 +205,9 @@ resource "aws_ecs_task_definition" "app" {
       containerPort = 8000
       hostPort      = 8000
     }]
+    environment = [
+      { name = "AWS_REGION", value = var.aws_region }
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
